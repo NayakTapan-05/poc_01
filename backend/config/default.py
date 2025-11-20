@@ -99,7 +99,7 @@ MODEL_REGISTRY = load_model_registry()
 class Settings(BaseSettings):
     """Application settings with environment variable support."""
     
-    HF_TOKEN: str = ""  # Hardcoded for POC - enables FLUX and other HF API models
+    HF_TOKEN: str = ""  # Set via environment variable - enables FLUX and other HF API models
     
     DATABASE_URL: str = f"sqlite:///{str(BASE_DIR.absolute())}/data/metadata.db"
     
