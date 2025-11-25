@@ -57,7 +57,7 @@ export default function TopNavigation() {
               <span className="text-white font-bold text-xl">U</span>
             </div>
             <span className="text-white font-bold text-lg bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              UCAi
+              UCA.ai
             </span>
           </Link>
 

@@ -235,7 +235,7 @@ export default function HomePage() {
               filter: 'drop-shadow(0 0 40px rgba(168, 85, 247, 0.5))'
             }}
           >
-            UCAi
+            UCA.ai
             {/* Static glow effect - no animation */}
             <span
               className="absolute inset-0 blur-2xl opacity-30"
@@ -496,7 +496,7 @@ export default function HomePage() {
             Ready to Transform Your Content?
           </motion.h2>
           <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
-            Join thousands of creators and brands using UCAi to create stunning visual content
+            Join thousands of creators and brands using UCA.ai to create stunning visual content
           </p>
           <div>
             <Link

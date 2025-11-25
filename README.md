@@ -1,4 +1,4 @@
-# UCAi - Unilever Content Assistant AI
+# UCA.ai - Unilever Content Assistant AI
 
 A fully functional POC that combines a Python FastAPI backend with a modern Next.js/React/TypeScript frontend to deliver AI-powered content generation with brand knowledge integration.
 
@@ -180,7 +180,7 @@ chmod +x start.sh
 After starting the servers (see Quick Start above), follow these steps:
 
 ### Step 1: Upload Brand Knowledge
-1. Go to **UCAi Brand Knowledge** page
+1. Go to **UCA.ai Brand Knowledge** page
 2. For each brand, create an Excel/CSV file with exactly 2 columns:
    - **BrandKey** (or Brand_Key, Brand Key) - brand attribute name (e.g., "Brand Communication Idea", "Tone of Voice")
    - **Description** (or Desc, Brand DNA Response) - detailed description of that brand attribute
@@ -285,7 +285,7 @@ Axe,"Axe is a men's grooming brand targeting young adults with bold, confident m
 
 ### 1. Ingest Brand DNA
 
-1. Navigate to **UCAi Brand Knowledge** page
+1. Navigate to **UCA.ai Brand Knowledge** page
 2. Upload a brand document (CSV or XLSX)
    - **Required columns**: 
      - Brand key column: `BrandKey`, `Brand_Key`, or `Brand Key` (case-insensitive)

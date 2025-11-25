@@ -96,7 +96,7 @@ class StubLLMClient:
     
     def _generate_help_response(self) -> str:
         return (
-            "I'm UCAi, your AI-powered content assistant. I can help you with:\n\n"
+            "I'm UCA.ai, your AI-powered content assistant. I can help you with:\n\n"
             "1. **Brand-aware image generation** - Create visuals aligned with your brand DNA\n"
             "2. **Video creation** - Generate dynamic videos from images\n"
             "3. **Creative copywriting** - Headlines, captions, and marketing copy\n"
@@ -107,7 +107,7 @@ class StubLLMClient:
     
     def _generate_greeting_response(self) -> str:
         return (
-            "Hello! I'm UCAi, your AI content assistant. "
+            "Hello! I'm UCA.ai, your AI content assistant. "
             "I'm here to help you create brand-aligned content including images, videos, and copy. "
             "What would you like to create today?\n\n"
             "*Note: This is a stub response. Connect a real LLM model for production use.*"

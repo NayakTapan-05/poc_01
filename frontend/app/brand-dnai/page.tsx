@@ -83,7 +83,7 @@ export default function BrandDNAiPage() {
           <Link href="/" className="text-blue-400 hover:text-blue-300">← Back to Home</Link>
         </div>
 
-        <h1 className="text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">UCAi Brand Knowledge</h1>
+        <h1 className="text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">UCA.ai Brand Knowledge</h1>
         <p className="text-xl text-gray-300 mb-8 max-w-3xl">
           Upload individual brand files containing 12-13 brand keys with their descriptions.
           Each brand should have its own Excel/CSV file with unique brand keys and descriptions.
