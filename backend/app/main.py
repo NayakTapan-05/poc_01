@@ -21,7 +21,7 @@ from services.doc_loader import load_document
 from services.text_splitter import TextSplitter
 from services.prompt_orchestrator import create_prompt_orchestrator
 from services.chat_service import BrandChatService
-from services.llm_client import LLMClient
+from services.llm_client import LLMClient, create_llm_client, StubLLMClient
 from services.brand_ingest import BrandIngestService
 from common.metadata import (
     MediaItem, add_media_item, get_media_item_by_id, get_all_media_items,
@@ -54,43 +54,17 @@ vector_store = VectorStore()
 text_splitter = TextSplitter()
 brand_ingest_service = BrandIngestService(vector_store, text_splitter)
 
-# Initialize LLM client and chat service
-try:
-    llm_client = LLMClient(model_id=settings.CHAT_MODEL_ID)
-    logger.info(f"Initialized local LLM client with model: {settings.CHAT_MODEL_ID}")
-except (FileNotFoundError, ImportError, ValueError) as e:
-    logger.error(f"Local LLM not available: {e}")
-    llm_client = None
-
-# Initialize chat service with proper dependencies
-if llm_client:
-    try:
-        from services.chat_store import ChatStore
-        from services.chat_llm import ChatLLM
-        from services.memory_engine import MemoryEngine
-        from services.rag_retrieval import RAGRetrieval
-        
-        # Initialize chat dependencies
-        chat_store = ChatStore()
-        chat_llm = ChatLLM(model_id=settings.CHAT_MODEL_ID)
-        rag_retrieval = RAGRetrieval(vector_store, top_k=5)
-        memory_engine = MemoryEngine(chat_llm)
-        
-        # Initialize chat service with all dependencies
-        chat_service = BrandChatService(
-            vector_store=vector_store,
-            llm_client=llm_client,
-            chat_store=chat_store,
-            chat_llm=chat_llm,
-            memory_engine=memory_engine
-        )
-        logger.info("Chat service initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize chat service: {e}")
-        chat_service = None
+# Initialize LLM client using factory function (falls back to stub if no model available)
+llm_client = create_llm_client(model_id=settings.CHAT_MODEL_ID, use_stub_if_unavailable=True)
+is_stub_llm = isinstance(llm_client, StubLLMClient)
+if is_stub_llm:
+    logger.warning("Using stub LLM client - chat responses will be simulated")
 else:
-    logger.warning("Chat service not available - LLM client not initialized")
-    chat_service = None
+    logger.info(f"Initialized local LLM client with model: {settings.CHAT_MODEL_ID}")
+
+# Initialize chat service - works with both real and stub LLM clients
+chat_service = BrandChatService(vector_store, llm_client)
+logger.info("Chat service initialized successfully")
 
 # Initialize prompt orchestrator with LLM client if available
 prompt_orchestrator = create_prompt_orchestrator(vector_store, llm_client=llm_client)
@@ -525,12 +499,6 @@ async def get_session(session_id: str):
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     """Main chat endpoint with multi-session support."""
-    if not chat_service:
-        raise HTTPException(
-            status_code=500,
-            detail="Local LLM model not found. Please download a GGUF model."
-        )
-    
     try:
         user_messages = [m for m in request.messages if m.get("role") == "user"]
         if not user_messages:

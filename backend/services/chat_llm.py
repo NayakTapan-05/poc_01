@@ -5,7 +5,7 @@ Handles model selection and LLM invocation with proper chat templates.
 import logging
 import os
 from typing import List, Dict, Optional
-from .llm_client import LLMClient
+from .llm_client import LLMClient, create_llm_client, StubLLMClient
 from config.default import settings, get_model_by_id
 
 logger = logging.getLogger(__name__)
@@ -34,9 +34,14 @@ class GGUFChatModel:
     def _initialize_client(self, gpu_layers_auto: bool):
         """Initialize LLM client with proper configuration."""
         try:
-            self._llm_client = LLMClient(model_id=self.model_id)
-            logger.info(f"Initialized GGUFChatModel with model: {self.model_id}")
-        except (FileNotFoundError, ImportError, ValueError) as e:
+            # Use factory function to get LLM client (falls back to stub if no model)
+            self._llm_client = create_llm_client(model_id=self.model_id, use_stub_if_unavailable=True)
+            is_stub = isinstance(self._llm_client, StubLLMClient)
+            if is_stub:
+                logger.warning(f"Using stub LLM for GGUFChatModel - no local model available")
+            else:
+                logger.info(f"Initialized GGUFChatModel with model: {self.model_id}")
+        except Exception as e:
             logger.warning(f"Chat LLM not available: {e}")
             self._llm_client = None
     

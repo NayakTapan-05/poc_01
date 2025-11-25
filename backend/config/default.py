@@ -97,12 +97,37 @@ MODEL_REGISTRY = load_model_registry()
 
 
 class Settings(BaseSettings):
-    """Application settings with environment variable support."""
+    """
+    Application settings with environment variable support.
     
-    HF_TOKEN: str = ""  # Set via environment variable - enables FLUX and other HF API models
+    For local development: Create a .env file in backend/ directory
+    For Azure deployment: Set environment variables in App Service Configuration
     
+    Required for Azure:
+    - DATA_DIR: Root path for data (default: /home/site/wwwroot/data in Azure)
+    - HF_TOKEN: HuggingFace API token for FLUX image generation
+    
+    Optional for future model platform integration:
+    - MODEL_API_URL: External model API endpoint
+    - MODEL_API_KEY: External model API key
+    """
+    
+    # Core paths - override for Azure deployment
+    # In Azure, set DATA_DIR=/home/site/wwwroot/data
+    DATA_DIR_OVERRIDE: str = ""  # If set, overrides default DATA_DIR
+    DB_PATH: str = ""  # If set, overrides default database path
+    
+    # HuggingFace API token - enables FLUX and other HF API models
+    HF_TOKEN: str = ""
+    
+    # Future model platform integration
+    MODEL_API_URL: str = ""  # External model API endpoint (for future use)
+    MODEL_API_KEY: str = ""  # External model API key (for future use)
+    
+    # Database URL (SQLite by default)
     DATABASE_URL: str = f"sqlite:///{str(BASE_DIR.absolute())}/data/metadata.db"
     
+    # Storage backend configuration
     STORAGE_BACKEND: str = "local"  # local or minio
     MINIO_ENDPOINT: str = ""
     MINIO_ACCESS_KEY: str = ""
@@ -110,22 +135,30 @@ class Settings(BaseSettings):
     
     # Model IDs from registry (can be overridden via env)
     EMBEDDING_MODEL_ID: str = "all-MiniLM-L6-v2"
-    IMAGE_MODEL_ID: str = "sd-turbo"
-    VIDEO_MODEL_ID: str = "svd"
+    IMAGE_MODEL_ID: str = "flux-schnell"  # Use HF API by default
+    VIDEO_MODEL_ID: str = "composition"  # Use frame composition by default
     CHAT_MODEL_ID: str = "phi-3.5-mini"  # or "llama-3.1-8b"
     
+    # Image generation defaults
     DEFAULT_IMAGE_STEPS: int = 4
     DEFAULT_IMAGE_SIZE: str = "512x512"
+    
+    # Video generation defaults
     DEFAULT_VIDEO_FRAMES: int = 96
     DEFAULT_VIDEO_FPS: int = 24
     DEFAULT_VIDEO_DURATION: int = 4
     
+    # RAG/Chunking settings
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 200
     K_RETRIEVAL: int = 4
     
+    # API server settings
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
+    
+    # CORS settings for frontend
+    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     
     class Config:
         env_file = ".env"
@@ -133,6 +166,23 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Override DATA_DIR if DATA_DIR_OVERRIDE is set (for Azure deployment)
+if settings.DATA_DIR_OVERRIDE:
+    DATA_DIR = Path(settings.DATA_DIR_OVERRIDE)
+    CHROMA_DIR = DATA_DIR / "chroma"
+    UPLOAD_DIR = DATA_DIR / "uploaded_files"
+    OUTPUT_IMAGE_DIR = DATA_DIR / "outputs" / "images"
+    OUTPUT_VIDEO_DIR = DATA_DIR / "outputs" / "videos"
+    ASSETS_DIR = DATA_DIR / "assets"
+    
+    # Ensure overridden directories exist
+    for d in [DATA_DIR, CHROMA_DIR, UPLOAD_DIR, OUTPUT_IMAGE_DIR, OUTPUT_VIDEO_DIR, ASSETS_DIR]:
+        ensure_writable_directory(d)
+
+# Override DATABASE_URL if DB_PATH is set
+if settings.DB_PATH:
+    settings.DATABASE_URL = f"sqlite:///{settings.DB_PATH}"
 
 # Get model info from registry
 def get_chat_model_info() -> Optional[Dict[str, Any]]:

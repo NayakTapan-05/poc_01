@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { api } from '@/lib/api-client'
+import { api, API_BASE_URL } from '@/lib/api-client'
 import { Image, Video, Download, Eye, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 
@@ -114,7 +114,7 @@ export default function LibraryPage() {
                   {item.mime_type?.includes('image') ? (
                     item.file_path ? (
                       <img
-                        src={`http://localhost:8000${item.file_path}`}
+                        src={`${API_BASE_URL}${item.file_path}`}
                         alt={item.prompt}
                         className="w-full h-full object-cover"
                       />
@@ -124,7 +124,7 @@ export default function LibraryPage() {
                   ) : item.mime_type?.includes('video') ? (
                     item.file_path ? (
                       <video
-                        src={`http://localhost:8000${item.file_path}`}
+                        src={`${API_BASE_URL}${item.file_path}`}
                         className="w-full h-full object-cover"
                         muted
                       />
@@ -160,7 +160,7 @@ export default function LibraryPage() {
                   <div className="flex gap-2">
                     {item.file_path && (
                       <a
-                        href={`http://localhost:8000${item.file_path}`}
+                        href={`${API_BASE_URL}${item.file_path}`}
                         download
                         className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-sm text-center transition"
                       >
@@ -277,13 +277,13 @@ export default function LibraryPage() {
                   <div className="mt-6">
                     {selectedItem.mime_type?.includes('image') ? (
                       <img
-                        src={`http://localhost:8000${selectedItem.file_path}`}
+                        src={`${API_BASE_URL}${selectedItem.file_path}`}
                         alt="Asset"
                         className="max-w-full rounded"
                       />
                     ) : (
                       <video
-                        src={`http://localhost:8000${selectedItem.file_path}`}
+                        src={`${API_BASE_URL}${selectedItem.file_path}`}
                         controls
                         className="max-w-full rounded"
                       />

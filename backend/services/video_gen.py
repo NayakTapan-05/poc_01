@@ -152,11 +152,11 @@ class VideoGenerator:
         if not image_path_obj.exists():
             raise GenerationError(f"Image not found: {image_path}", "file_not_found")
         
-            base_image = Image.open(image_path)
-            if base_image.mode != 'RGB':
-                base_image = base_image.convert('RGB')
-            
-            width, height = base_image.size
+        base_image = Image.open(image_path)
+        if base_image.mode != 'RGB':
+            base_image = base_image.convert('RGB')
+        
+        width, height = base_image.size
         frames_list = []
         
         # Create frames with zoom, pan, fade effects

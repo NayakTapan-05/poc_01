@@ -1,0 +1,110 @@
+# Azure DevOps Pipeline for Backend Deployment
+# Builds, tests, and deploys the Python FastAPI backend to Azure App Service
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - backend/**
+      - models/registry.json
+
+variables:
+  - name: pythonVersion
+    value: '3.12'
+  - name: workingDirectory
+    value: 'backend'
+
+stages:
+  - stage: Build
+    displayName: 'Build and Test'
+    jobs:
+      - job: BuildAndTest
+        displayName: 'Build and Test Backend'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(pythonVersion)'
+            displayName: 'Use Python $(pythonVersion)'
+
+          - script: |
+              curl -sSL https://install.python-poetry.org | python3 -
+              echo "$HOME/.local/bin" >> $GITHUB_PATH
+            displayName: 'Install Poetry'
+
+          - script: |
+              cd $(workingDirectory)
+              poetry config virtualenvs.create false
+              poetry install --no-interaction --no-ansi
+            displayName: 'Install dependencies'
+
+          - script: |
+              cd $(workingDirectory)
+              poetry run pytest tests/ -v --tb=short --junitxml=test-results.xml
+            displayName: 'Run tests'
+            continueOnError: true
+
+          - task: PublishTestResults@2
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '$(workingDirectory)/test-results.xml'
+              failTaskOnFailedTests: false
+            displayName: 'Publish test results'
+
+          - script: |
+              cd $(workingDirectory)
+              mkdir -p $(Build.ArtifactStagingDirectory)/backend
+              cp -r app common config services scripts pyproject.toml poetry.lock $(Build.ArtifactStagingDirectory)/backend/
+              cp -r ../models $(Build.ArtifactStagingDirectory)/
+            displayName: 'Copy files to staging'
+
+          - task: ArchiveFiles@2
+            inputs:
+              rootFolderOrFile: '$(Build.ArtifactStagingDirectory)'
+              includeRootFolder: false
+              archiveType: 'zip'
+              archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
+              replaceExistingArchive: true
+            displayName: 'Create deployment package'
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)/backend.zip'
+              ArtifactName: 'backend'
+              publishLocation: 'Container'
+            displayName: 'Publish artifact'
+
+  - stage: Deploy
+    displayName: 'Deploy to Azure'
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployBackend
+        displayName: 'Deploy Backend to Azure App Service'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadBuildArtifacts@1
+                  inputs:
+                    buildType: 'current'
+                    downloadType: 'single'
+                    artifactName: 'backend'
+                    downloadPath: '$(System.ArtifactsDirectory)'
+                  displayName: 'Download artifact'
+
+                - task: AzureWebApp@1
+                  inputs:
+                    azureSubscription: '$(azureServiceConnection)'
+                    appType: 'webAppLinux'
+                    appName: '$(webAppNameBackend)'
+                    package: '$(System.ArtifactsDirectory)/backend/backend.zip'
+                    runtimeStack: 'PYTHON|3.12'
+                    startUpCommand: 'gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000'
+                  displayName: 'Deploy to Azure App Service'

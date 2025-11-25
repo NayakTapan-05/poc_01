@@ -338,7 +338,7 @@ export default function ImageStudioPage() {
             {result ? (
               <div className="space-y-4">
                 <img
-                  src={`http://localhost:8000${result.image_path}`}
+                  src={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}${result.image_path}`}
                   alt="Generated"
                   className="w-full rounded"
                 />
@@ -359,7 +359,7 @@ export default function ImageStudioPage() {
                     Mark as Final
                   </button>
                 <a
-                  href={`http://localhost:8000${result.image_path}`}
+                  href={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}${result.image_path}`}
                   download
                     className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-center font-semibold transition flex items-center justify-center"
                 >

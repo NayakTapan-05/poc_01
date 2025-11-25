@@ -322,15 +322,15 @@ class BrandChatService:
             ])
             if summary:
                 self.chat_store.update_session(session_id, summary=summary)
-            
-            return {
+        
+        return {
             "session_id": session_id,
-                "answer": answer,
-                "intent": intent,
+            "answer": answer,
+            "intent": intent,
             "brand": brand or session_data.get("brand"),
-                "sources": ctx["sources"],
-                "debug": {
+            "sources": ctx["sources"],
+            "debug": {
                 "used_summary": session_data.get("summary") is not None,
-                    "snippet_count": len(ctx["snippets"])
-                }
+                "snippet_count": len(ctx["snippets"])
             }
+        }

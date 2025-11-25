@@ -343,8 +343,7 @@ class ImageGenerator:
                     logger.info(f"Falling back to HF API for model: {model_id}")
                     try:
                         image_bytes = self._generate_hf_api(prompt, model_id)
-                        from PIL import Image
-                        import io
+                        # Use module-level Image import (already imported at top)
                         image = Image.open(io.BytesIO(image_bytes))
                     except Exception as hf_error:
                         logger.error(f"HF API fallback also failed: {hf_error}")
@@ -365,7 +364,7 @@ class ImageGenerator:
             image_content = img_bytes.read()
         else:  # HF API
             image_content = self._generate_hf_api(prompt, model_id)
-            image = Image.open(io.BytesIO(image_content))
+            # Image is already imported at module level
         
         # Store using new structure
         brand_id = brand or "default"

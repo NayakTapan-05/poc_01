@@ -762,4 +762,285 @@ curl http://localhost:8000/api/models?type=chat
 
 ---
 
+## Running Locally
+
+### Prerequisites
+
+- Python 3.12+
+- Node.js 18+
+- Poetry (Python package manager)
+- npm (Node package manager)
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+```bash
+cd backend
+```
+
+2. Install Python dependencies:
+```bash
+poetry install
+```
+
+3. Create a `.env` file in the `backend/` directory:
+```bash
+# backend/.env
+
+# HuggingFace API token (required for FLUX image generation)
+HF_TOKEN=your_huggingface_token_here
+
+# Optional: Override data directory (default: ./data)
+# DATA_DIR_OVERRIDE=/path/to/data
+
+# Optional: Override database path (default: ./data/metadata.db)
+# DB_PATH=/path/to/metadata.db
+
+# Optional: Future model platform integration
+# MODEL_API_URL=https://your-model-api.com
+# MODEL_API_KEY=your_api_key
+
+# Model selection (defaults shown)
+CHAT_MODEL_ID=phi-3.5-mini
+IMAGE_MODEL_ID=flux-schnell
+VIDEO_MODEL_ID=composition
+EMBEDDING_MODEL_ID=all-MiniLM-L6-v2
+
+# API server settings
+API_HOST=0.0.0.0
+API_PORT=8000
+
+# CORS origins (comma-separated)
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+4. Download chat models (optional, for local LLM chat):
+```bash
+poetry run python scripts/download_models.py
+```
+
+5. Start the backend server:
+```bash
+poetry run python app/main.py
+```
+
+The backend will be available at http://localhost:8000
+
+### Frontend Setup
+
+1. Navigate to the frontend directory:
+```bash
+cd frontend
+```
+
+2. Install Node dependencies:
+```bash
+npm install
+```
+
+3. Create a `.env.local` file in the `frontend/` directory:
+```bash
+# frontend/.env.local
+
+# Backend API URL (required)
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
+
+4. Start the frontend development server:
+```bash
+npm run dev
+```
+
+The frontend will be available at http://localhost:3000
+
+### Environment Variables Reference
+
+#### Backend Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `HF_TOKEN` | Yes* | - | HuggingFace API token for FLUX image generation |
+| `DATA_DIR_OVERRIDE` | No | `./data` | Override default data directory path |
+| `DB_PATH` | No | `./data/metadata.db` | Override default SQLite database path |
+| `MODEL_API_URL` | No | - | External model API endpoint (future use) |
+| `MODEL_API_KEY` | No | - | External model API key (future use) |
+| `CHAT_MODEL_ID` | No | `phi-3.5-mini` | Default chat model ID |
+| `IMAGE_MODEL_ID` | No | `flux-schnell` | Default image model ID |
+| `VIDEO_MODEL_ID` | No | `composition` | Default video model ID |
+| `EMBEDDING_MODEL_ID` | No | `all-MiniLM-L6-v2` | Default embedding model ID |
+| `API_HOST` | No | `0.0.0.0` | API server host |
+| `API_PORT` | No | `8000` | API server port |
+| `CORS_ORIGINS` | No | `http://localhost:3000` | Allowed CORS origins |
+| `DATABASE_URL` | No | `sqlite:///./data/metadata.db` | SQLite database URL |
+
+*Required for FLUX image generation via HuggingFace API
+
+#### Frontend Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `NEXT_PUBLIC_API_BASE_URL` | Yes | `http://localhost:8000` | Backend API base URL |
+
+---
+
+## Deploying to Azure App Service
+
+### Architecture Overview
+
+The application consists of two Azure Web Apps:
+1. **Backend** - Python FastAPI application on Linux Web App
+2. **Frontend** - Next.js application on Linux Web App (Node.js)
+
+### Backend Deployment
+
+#### 1. Create Azure Web App (Linux, Python)
+
+```bash
+# Create resource group
+az group create --name rg-ucai-poc --location eastus
+
+# Create App Service plan
+az appservice plan create \
+  --name asp-ucai-backend \
+  --resource-group rg-ucai-poc \
+  --is-linux \
+  --sku B1
+
+# Create Web App
+az webapp create \
+  --name ucai-backend \
+  --resource-group rg-ucai-poc \
+  --plan asp-ucai-backend \
+  --runtime "PYTHON:3.12"
+```
+
+#### 2. Configure Environment Variables
+
+Set the following environment variables in Azure App Service Configuration:
+
+```bash
+# Required
+HF_TOKEN=your_huggingface_token_here
+DATA_DIR_OVERRIDE=/home/site/wwwroot/data
+
+# Optional (with recommended values)
+DB_PATH=/home/site/wwwroot/data/metadata.db
+CHAT_MODEL_ID=phi-3.5-mini
+IMAGE_MODEL_ID=flux-schnell
+VIDEO_MODEL_ID=composition
+EMBEDDING_MODEL_ID=all-MiniLM-L6-v2
+CORS_ORIGINS=https://your-frontend-app.azurewebsites.net
+
+# Future model platform integration (set via Azure Key Vault)
+# MODEL_API_URL=https://your-model-api.com
+# MODEL_API_KEY=your_api_key
+```
+
+#### 3. Configure Startup Command
+
+In Azure Portal > Web App > Configuration > General settings > Startup Command:
+
+```bash
+gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+```
+
+Or set via Azure CLI:
+
+```bash
+az webapp config set \
+  --name ucai-backend \
+  --resource-group rg-ucai-poc \
+  --startup-file "gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000"
+```
+
+#### 4. Deploy Backend Code
+
+Option A: Deploy via ZIP:
+```bash
+cd backend
+zip -r ../backend.zip . -x "*.pyc" -x "__pycache__/*" -x ".env"
+az webapp deployment source config-zip \
+  --name ucai-backend \
+  --resource-group rg-ucai-poc \
+  --src ../backend.zip
+```
+
+Option B: Deploy via Git (see Azure DevOps pipelines below)
+
+### Frontend Deployment
+
+#### 1. Create Azure Web App (Linux, Node.js)
+
+```bash
+# Create App Service plan (can share with backend)
+az appservice plan create \
+  --name asp-ucai-frontend \
+  --resource-group rg-ucai-poc \
+  --is-linux \
+  --sku B1
+
+# Create Web App
+az webapp create \
+  --name ucai-frontend \
+  --resource-group rg-ucai-poc \
+  --plan asp-ucai-frontend \
+  --runtime "NODE:18-lts"
+```
+
+#### 2. Configure Environment Variables
+
+Set the following environment variables in Azure App Service Configuration:
+
+```bash
+NEXT_PUBLIC_API_BASE_URL=https://ucai-backend.azurewebsites.net
+```
+
+#### 3. Build and Deploy
+
+```bash
+cd frontend
+npm install
+npm run build
+
+# Deploy the .next folder and other required files
+zip -r ../frontend.zip .next public package.json next.config.js node_modules
+az webapp deployment source config-zip \
+  --name ucai-frontend \
+  --resource-group rg-ucai-poc \
+  --src ../frontend.zip
+```
+
+### Using Azure Key Vault for Secrets
+
+For production deployments, store sensitive values in Azure Key Vault:
+
+```bash
+# Create Key Vault
+az keyvault create \
+  --name kv-ucai-poc \
+  --resource-group rg-ucai-poc \
+  --location eastus
+
+# Add secrets
+az keyvault secret set --vault-name kv-ucai-poc --name HF-TOKEN --value "your_token"
+az keyvault secret set --vault-name kv-ucai-poc --name MODEL-API-KEY --value "your_key"
+
+# Enable managed identity for Web App
+az webapp identity assign --name ucai-backend --resource-group rg-ucai-poc
+
+# Grant Key Vault access to Web App
+az keyvault set-policy \
+  --name kv-ucai-poc \
+  --object-id <webapp-principal-id> \
+  --secret-permissions get list
+```
+
+Then reference secrets in App Settings:
+```
+HF_TOKEN=@Microsoft.KeyVault(SecretUri=https://kv-ucai-poc.vault.azure.net/secrets/HF-TOKEN/)
+MODEL_API_KEY=@Microsoft.KeyVault(SecretUri=https://kv-ucai-poc.vault.azure.net/secrets/MODEL-API-KEY/)
+```
+
+---
+
 **Ready to generate brand-true content!** 🚀

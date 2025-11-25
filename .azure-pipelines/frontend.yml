@@ -1,0 +1,104 @@
+# Azure DevOps Pipeline for Frontend Deployment
+# Builds and deploys the Next.js frontend to Azure App Service
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - frontend/**
+
+variables:
+  - name: nodeVersion
+    value: '18.x'
+  - name: workingDirectory
+    value: 'frontend'
+
+stages:
+  - stage: Build
+    displayName: 'Build Frontend'
+    jobs:
+      - job: BuildFrontend
+        displayName: 'Build Next.js Application'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '$(nodeVersion)'
+            displayName: 'Use Node.js $(nodeVersion)'
+
+          - script: |
+              cd $(workingDirectory)
+              npm ci
+            displayName: 'Install dependencies'
+
+          - script: |
+              cd $(workingDirectory)
+              npm run lint || true
+            displayName: 'Run linting'
+            continueOnError: true
+
+          - script: |
+              cd $(workingDirectory)
+              npm run build
+            displayName: 'Build Next.js application'
+            env:
+              NEXT_PUBLIC_API_BASE_URL: $(NEXT_PUBLIC_API_BASE_URL)
+
+          - script: |
+              cd $(workingDirectory)
+              mkdir -p $(Build.ArtifactStagingDirectory)/frontend
+              cp -r .next public package.json package-lock.json next.config.js $(Build.ArtifactStagingDirectory)/frontend/
+              # Copy node_modules for production
+              cp -r node_modules $(Build.ArtifactStagingDirectory)/frontend/
+            displayName: 'Copy build output to staging'
+
+          - task: ArchiveFiles@2
+            inputs:
+              rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/frontend'
+              includeRootFolder: false
+              archiveType: 'zip'
+              archiveFile: '$(Build.ArtifactStagingDirectory)/frontend.zip'
+              replaceExistingArchive: true
+            displayName: 'Create deployment package'
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)/frontend.zip'
+              ArtifactName: 'frontend'
+              publishLocation: 'Container'
+            displayName: 'Publish artifact'
+
+  - stage: Deploy
+    displayName: 'Deploy to Azure'
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployFrontend
+        displayName: 'Deploy Frontend to Azure App Service'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadBuildArtifacts@1
+                  inputs:
+                    buildType: 'current'
+                    downloadType: 'single'
+                    artifactName: 'frontend'
+                    downloadPath: '$(System.ArtifactsDirectory)'
+                  displayName: 'Download artifact'
+
+                - task: AzureWebApp@1
+                  inputs:
+                    azureSubscription: '$(azureServiceConnection)'
+                    appType: 'webAppLinux'
+                    appName: '$(webAppNameFrontend)'
+                    package: '$(System.ArtifactsDirectory)/frontend/frontend.zip'
+                    runtimeStack: 'NODE|18-lts'
+                    startUpCommand: 'npm start'
+                  displayName: 'Deploy to Azure App Service'

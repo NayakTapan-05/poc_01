@@ -1,6 +1,6 @@
 """
-Local LLM Client using llama-cpp-python for offline inference.
-Supports Phi-3 Mini, Llama 3.1 8B, and other GGUF models from registry.
+LLM Client module with support for local GGUF models and stub/mock for development.
+Provides a clean interface that can be configured via environment variables.
 """
 import os
 import re
@@ -12,12 +12,127 @@ from config.default import settings, TEXT_MODELS_DIR, BASE_DIR, get_model_by_id,
 logger = logging.getLogger(__name__)
 
 
-def strip_deepseek_thinking(text: str) -> str:
-    """Remove <think>...</think> reasoning blocks from DeepSeek output."""
+def strip_thinking_blocks(text: str) -> str:
+    """Remove <think>...</think> reasoning blocks from model output."""
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
     text = text.strip()
     lines = [line for line in text.split('\n') if line.strip()]
     return '\n'.join(lines)
+
+
+class StubLLMClient:
+    """
+    Stub LLM client for development/testing when no local model is available.
+    Returns contextual responses based on the input to allow testing of the full pipeline.
+    """
+    
+    def __init__(self):
+        """Initialize stub LLM client."""
+        self.model_id = "stub"
+        self.model_name = "Stub LLM (Development Mode)"
+        logger.warning("Using StubLLMClient - no local GGUF model available")
+        logger.warning("For production, download a model: python backend/scripts/download_models.py")
+    
+    def chat(self, messages: List[Dict[str, str]], max_tokens: int = 512, temperature: float = 0.7) -> str:
+        """
+        Generate a stub response based on the input messages.
+        
+        Args:
+            messages: List of message dicts with 'role' and 'content'
+            max_tokens: Maximum tokens to generate (ignored in stub)
+            temperature: Sampling temperature (ignored in stub)
+            
+        Returns:
+            Stub response text
+        """
+        user_messages = [m for m in messages if m.get("role") == "user"]
+        last_user_message = user_messages[-1].get("content", "") if user_messages else ""
+        
+        lower_msg = last_user_message.lower()
+        
+        if any(k in lower_msg for k in ["image", "visual", "banner", "hero", "thumbnail"]):
+            return self._generate_image_prompt_response(last_user_message)
+        elif any(k in lower_msg for k in ["video", "reel", "clip", "motion"]):
+            return self._generate_video_prompt_response(last_user_message)
+        elif any(k in lower_msg for k in ["post", "caption", "headline", "copy", "script", "email", "tagline"]):
+            return self._generate_creative_copy_response(last_user_message)
+        elif any(k in lower_msg for k in ["who are you", "what can you do", "help", "how to"]):
+            return self._generate_help_response()
+        elif any(k in lower_msg for k in ["hi", "hello", "hey", "good morning"]):
+            return self._generate_greeting_response()
+        else:
+            return self._generate_qa_response(last_user_message, messages)
+    
+    def _generate_image_prompt_response(self, query: str) -> str:
+        return (
+            "Based on your request, here's an enhanced image prompt:\n\n"
+            f"**Original request:** {query[:100]}...\n\n"
+            "**Enhanced prompt:** A professional, high-quality marketing image featuring "
+            "vibrant colors, clean composition, and brand-aligned visual elements. "
+            "The image should convey trust, quality, and modern aesthetics.\n\n"
+            "*Note: This is a stub response. Connect a real LLM model for production use.*"
+        )
+    
+    def _generate_video_prompt_response(self, query: str) -> str:
+        return (
+            "Based on your request, here's a video concept:\n\n"
+            f"**Original request:** {query[:100]}...\n\n"
+            "**Video concept:** A dynamic 4-second video with smooth zoom and pan effects, "
+            "transitioning from product focus to lifestyle context. "
+            "The motion should feel premium and engaging.\n\n"
+            "*Note: This is a stub response. Connect a real LLM model for production use.*"
+        )
+    
+    def _generate_creative_copy_response(self, query: str) -> str:
+        return (
+            "Here's a creative copy suggestion:\n\n"
+            f"**Brief:** {query[:100]}...\n\n"
+            "**Headline:** Discover the Difference\n"
+            "**Body:** Experience quality that speaks for itself. "
+            "Our commitment to excellence shines through in every detail.\n"
+            "**CTA:** Learn More\n\n"
+            "*Note: This is a stub response. Connect a real LLM model for production use.*"
+        )
+    
+    def _generate_help_response(self) -> str:
+        return (
+            "I'm UCAi, your AI-powered content assistant. I can help you with:\n\n"
+            "1. **Brand-aware image generation** - Create visuals aligned with your brand DNA\n"
+            "2. **Video creation** - Generate dynamic videos from images\n"
+            "3. **Creative copywriting** - Headlines, captions, and marketing copy\n"
+            "4. **Brand Q&A** - Answer questions about ingested brand guidelines\n\n"
+            "To get started, try asking me to create an image or write some copy!\n\n"
+            "*Note: This is a stub response. Connect a real LLM model for production use.*"
+        )
+    
+    def _generate_greeting_response(self) -> str:
+        return (
+            "Hello! I'm UCAi, your AI content assistant. "
+            "I'm here to help you create brand-aligned content including images, videos, and copy. "
+            "What would you like to create today?\n\n"
+            "*Note: This is a stub response. Connect a real LLM model for production use.*"
+        )
+    
+    def _generate_qa_response(self, query: str, messages: List[Dict[str, str]]) -> str:
+        system_messages = [m for m in messages if m.get("role") == "system"]
+        has_brand_context = any("Brand DNA" in m.get("content", "") or "context" in m.get("content", "").lower() 
+                                for m in system_messages)
+        
+        if has_brand_context:
+            return (
+                f"Based on the brand context provided, here's my response to: '{query[:50]}...'\n\n"
+                "The brand emphasizes quality, trust, and customer-centric values. "
+                "Key messaging should focus on these core attributes while maintaining "
+                "a professional yet approachable tone.\n\n"
+                "*Note: This is a stub response. Connect a real LLM model for production use.*"
+            )
+        else:
+            return (
+                f"Regarding your question: '{query[:50]}...'\n\n"
+                "I'd be happy to help! For more accurate brand-specific responses, "
+                "please ensure brand DNA documents have been ingested into the system.\n\n"
+                "*Note: This is a stub response. Connect a real LLM model for production use.*"
+            )
 
 
 class LocalLLMClient:
@@ -224,13 +339,33 @@ class LocalLLMClient:
             
             response_text = result["choices"][0]["message"]["content"].strip()
             
-            response_text = strip_deepseek_thinking(response_text)
+            response_text = strip_thinking_blocks(response_text)
             
             return response_text
             
         except Exception as e:
             logger.error(f"LLM inference error: {e}")
             raise
+
+
+def create_llm_client(model_id: Optional[str] = None, use_stub_if_unavailable: bool = True):
+    """
+    Factory function to create an LLM client.
+    
+    Args:
+        model_id: Model ID from registry
+        use_stub_if_unavailable: If True, return StubLLMClient when no model is available
+        
+    Returns:
+        LLM client instance (LocalLLMClient or StubLLMClient)
+    """
+    try:
+        return LocalLLMClient(model_id)
+    except (FileNotFoundError, ImportError, ValueError) as e:
+        if use_stub_if_unavailable:
+            logger.warning(f"Local LLM not available ({e}), using stub client")
+            return StubLLMClient()
+        raise
 
 
 LLMClient = LocalLLMClient
